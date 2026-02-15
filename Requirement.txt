@@ -2,7 +2,6 @@ pytest
 behave
 pytest-html
 allure-behave
-msedge-selenium-tools
 browserstack-local
 selenium==4.40.0
 webdriver-manager==4.0.2

@@ -62,6 +62,7 @@ def get_driver(browser="chrome", use_browserstack=False, scenario_name="Behave T
 
     elif browser.lower() == "edge":
         options = webdriver.EdgeOptions()
+        options.use_chromium = True  # Ensure Edge runs in Chromium mode
         options.add_argument("--start-maximized")
         driver = webdriver.Edge(
             service=EdgeService(EdgeChromiumDriverManager().install()),
