@@ -1,0 +1,8 @@
+pytest
+selenium
+behave
+pytest-html
+allure-behave
+webdriver-manager
+msedge-selenium-tools
+browserstack-local
