@@ -64,10 +64,13 @@ def get_driver(browser="chrome", use_browserstack=False, scenario_name="Behave T
         options = webdriver.EdgeOptions()
         options.use_chromium = True  # Ensure Edge runs in Chromium mode
         options.add_argument("--start-maximized")
+        # Use cached driver if exists, otherwise WebDriver Manager downloads
+        driver_path = EdgeChromiumDriverManager().install()
         driver = webdriver.Edge(
-            service=EdgeService(EdgeChromiumDriverManager().install()),
+            service=EdgeService(driver_path),
             options=options
         )
+
 
     else:
         raise ValueError(f"Browser '{browser}' is not supported. Use 'chrome', 'firefox', or 'edge'.")
