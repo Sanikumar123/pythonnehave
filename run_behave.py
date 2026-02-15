@@ -66,7 +66,7 @@ if browserstack:
 try:
     subprocess.run(behave_cmd, check=True)
 except subprocess.CalledProcessError as e:
-    print(f"⚠️ Behave execution failed with exit code {e.returncode}")
+    print(f"Behave execution failed with exit code {e.returncode}")
     # Continue anyway to generate Allure report
 
 # ---------------- Generate Allure report ----------------
@@ -77,7 +77,7 @@ try:
         "-o", ALLURE_REPORT,
         "--clean"
     ], check=True)
-    print(f"✅ Allure report generated at: {ALLURE_REPORT}")
+    print(f"Allure report generated at: {ALLURE_REPORT}")
     print(f"To open the report: {ALLURE_CLI} open {ALLURE_REPORT}")
 except subprocess.CalledProcessError as e:
-    print(f"❌ Failed to generate Allure report: {e}")
+    print(f"Failed to generate Allure report: {e}")
