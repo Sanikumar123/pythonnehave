@@ -1,69 +1,88 @@
 pipeline {
     agent any
 
-    // ---------------- Pipeline Parameters ----------------
+    /* ---------------- Parameters ---------------- */
     parameters {
-        string(name: 'TAGS', defaultValue: 'login', description: 'Behave tags to run')
-        choice(name: 'BROWSER', choices: ['chrome', 'firefox', 'edge', 'safari'], description: 'Browser for execution')
+        string(name: 'TAGS', defaultValue: 'login', description: 'Behave tags')
+        choice(name: 'BROWSER', choices: ['chrome', 'firefox', 'edge', 'safari'], description: 'Browser')
         booleanParam(name: 'BROWSERSTACK', defaultValue: true, description: 'Run on BrowserStack?')
-        string(name: 'BROWSER_VERSION', defaultValue: 'latest', description: 'Browser version for desktop')
-        string(name: 'OS_NAME', defaultValue: 'Windows', description: 'OS Name for desktop')
-        string(name: 'OS_VERSION', defaultValue: '11', description: 'OS Version for desktop')
-        string(name: 'DEVICE_NAME', defaultValue: '', description: 'Device Name for mobile (leave blank for desktop)')
-        string(name: 'MOBILE_OS_VERSION', defaultValue: '', description: 'OS version for mobile device')
-    }
 
-    environment {
-        PYTHON_ENV = ".venv/Scripts/activate" // Windows virtualenv path
+        // Desktop
+        string(name: 'BROWSER_VERSION', defaultValue: 'latest', description: 'Browser version')
+        string(name: 'OS_NAME', defaultValue: 'Windows', description: 'OS Name')
+        string(name: 'OS_VERSION', defaultValue: '11', description: 'OS Version')
+
+        // Mobile
+        string(name: 'DEVICE_NAME', defaultValue: '', description: 'Mobile device name (optional)')
+        string(name: 'MOBILE_OS_VERSION', defaultValue: '', description: 'Mobile OS version')
     }
 
     stages {
 
+        /* ---------------- Checkout ---------------- */
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
+        /* ---------------- Setup Python ---------------- */
         stage('Setup Python') {
             steps {
-                echo "Activating virtual environment"
-                bat "call ${env.PYTHON_ENV}"
+                echo "Creating Python virtual environment"
+                bat 'python -m venv .venv'
+
                 echo "Installing dependencies"
-                bat "pip install -r requirements.txt"
+                bat '''
+                call .venv\\Scripts\\activate.bat
+                pip install --upgrade pip
+                pip install -r requirements.txt
+                '''
             }
         }
 
+        /* ---------------- Run Tests ---------------- */
         stage('Run Tests') {
             steps {
                 script {
-                    // Build the Behave command dynamically
-                    def cmd = "python run_behave.py --tags=${params.TAGS} browser=${params.BROWSER} browserstack=${params.BROWSERSTACK}"
+                    def cmd = "python run_behave.py --tags=${params.TAGS} browser=${params.BROWSER}"
 
                     if (params.BROWSERSTACK) {
-                        if (params.DEVICE_NAME) {
-                            // Mobile device execution
-                            cmd += " device=${params.DEVICE_NAME} o_version=${params.MOBILE_OS_VERSION}"
+                        cmd += " browserstack=true"
+
+                        if (params.DEVICE_NAME?.trim()) {
+                            //Mobile execution
+                            cmd += " device=${params.DEVICE_NAME}"
+                            if (params.MOBILE_OS_VERSION) {
+                                cmd += " o_version=${params.MOBILE_OS_VERSION}"
+                            }
                         } else {
-                            // Desktop execution
-                            cmd += " b_version=${params.BROWSER_VERSION} os=${params.OS_NAME} o_version=${params.OS_VERSION}"
+                            //Desktop execution
+                            cmd += " b_version=${params.BROWSER_VERSION}"
+                            cmd += " os=${params.OS_NAME}"
+                            cmd += " o_version=${params.OS_VERSION}"
                         }
                     }
 
-                    // Log the command for debugging
-                    echo "Running command: ${cmd}"
+                    echo "Executing command:"
+                    echo cmd
 
-                    // Run the tests
-                    bat cmd
+                    bat """
+                    call .venv\\Scripts\\activate.bat
+                    ${cmd}
+                    """
                 }
             }
         }
 
+        /* ---------------- Allure Report ---------------- */
         stage('Generate Allure Report') {
             steps {
                 echo "Generating Allure report"
-                bat 'allure-2.36.0\\bin\\allure generate reports\\allure-results -o reports\\allure-report --clean'
-                echo "Open report: allure-2.36.0\\bin\\allure open reports\\allure-report"
+                bat '''
+                allure-2.36.0\\bin\\allure generate reports\\allure-results ^
+                    -o reports\\allure-report --clean
+                '''
             }
         }
     }
@@ -75,11 +94,11 @@ pipeline {
         }
 
         failure {
-            echo "Tests failed!"
+            echo "Tests failed"
         }
 
         success {
-            echo "Tests passed!"
+            echo "Tests passed"
         }
     }
 }
