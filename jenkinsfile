@@ -1,38 +1,31 @@
 pipeline {
     agent any
 
-    /* ---------------- Parameters ---------------- */
     parameters {
         string(name: 'TAGS', defaultValue: 'login', description: 'Behave tags')
         choice(name: 'BROWSER', choices: ['chrome', 'firefox', 'edge', 'safari'], description: 'Browser')
         booleanParam(name: 'BROWSERSTACK', defaultValue: true, description: 'Run on BrowserStack?')
 
-        // Desktop
         string(name: 'BROWSER_VERSION', defaultValue: 'latest', description: 'Browser version')
         string(name: 'OS_NAME', defaultValue: 'Windows', description: 'OS Name')
         string(name: 'OS_VERSION', defaultValue: '11', description: 'OS Version')
 
-        // Mobile
-        string(name: 'DEVICE_NAME', defaultValue: '', description: 'Mobile device name (optional)')
+        string(name: 'DEVICE_NAME', defaultValue: '', description: 'Mobile device name')
         string(name: 'MOBILE_OS_VERSION', defaultValue: '', description: 'Mobile OS version')
     }
 
     stages {
 
-        /* ---------------- Checkout ---------------- */
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        /* ---------------- Setup Python ---------------- */
         stage('Setup Python') {
             steps {
-                echo "Creating Python virtual environment"
                 bat 'python -m venv .venv'
 
-                echo "Installing dependencies"
                 bat '''
                 call .venv\\Scripts\\activate.bat
                 pip install --upgrade pip
@@ -41,7 +34,6 @@ pipeline {
             }
         }
 
-        /* ---------------- Run Tests ---------------- */
         stage('Run Tests') {
             steps {
                 script {
@@ -51,21 +43,16 @@ pipeline {
                         cmd += " browserstack=true"
 
                         if (params.DEVICE_NAME?.trim()) {
-                            //Mobile execution
                             cmd += " device=${params.DEVICE_NAME}"
                             if (params.MOBILE_OS_VERSION) {
                                 cmd += " o_version=${params.MOBILE_OS_VERSION}"
                             }
                         } else {
-                            //Desktop execution
                             cmd += " b_version=${params.BROWSER_VERSION}"
                             cmd += " os=${params.OS_NAME}"
                             cmd += " o_version=${params.OS_VERSION}"
                         }
                     }
-
-                    echo "Executing command:"
-                    echo cmd
 
                     bat """
                     call .venv\\Scripts\\activate.bat
@@ -75,10 +62,9 @@ pipeline {
             }
         }
 
-        /* ---------------- Allure Report ---------------- */
-        stage('Generate Allure Report') {
+        // Generate HTML report in workspace
+        stage('Generate Allure HTML Report') {
             steps {
-                echo "Generating Allure report"
                 bat '''
                 allure-2.36.0\\bin\\allure generate reports\\allure-results ^
                     -o reports\\allure-report --clean
@@ -89,16 +75,17 @@ pipeline {
 
     post {
         always {
-            echo "Archiving Allure reports"
+            echo "Publishing Allure Report in Jenkins UI..."
+
+            // Publish inside Jenkins UI
+            allure([
+                includeProperties: false,
+                jdk: '',
+                results: [[path: 'reports/allure-results']]
+            ])
+
+            // Archive HTML for download
             archiveArtifacts artifacts: 'reports/allure-report/**', allowEmptyArchive: true
-        }
-
-        failure {
-            echo "Tests failed"
-        }
-
-        success {
-            echo "Tests passed"
         }
     }
 }
