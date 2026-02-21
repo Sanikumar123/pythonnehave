@@ -1,0 +1,86 @@
+
+pipeline {
+    agent any
+
+    // ---------------- Pipeline Parameters ----------------
+    parameters {
+        string(name: 'TAGS', defaultValue: 'login', description: 'Behave tags to run')
+        choice(name: 'BROWSER', choices: ['chrome', 'firefox', 'edge', 'safari'], description: 'Browser for execution')
+        booleanParam(name: 'BROWSERSTACK', defaultValue: true, description: 'Run on BrowserStack?')
+        string(name: 'BROWSER_VERSION', defaultValue: 'latest', description: 'Browser version for desktop')
+        string(name: 'OS_NAME', defaultValue: 'Windows', description: 'OS Name for desktop')
+        string(name: 'OS_VERSION', defaultValue: '11', description: 'OS Version for desktop')
+        string(name: 'DEVICE_NAME', defaultValue: '', description: 'Device Name for mobile (leave blank for desktop)')
+        string(name: 'MOBILE_OS_VERSION', defaultValue: '', description: 'OS version for mobile device')
+    }
+
+    environment {
+        // BrowserStack credentials (add them in Jenkins credentials)
+        BS_USER = credentials('BROWSERSTACK_USERNAME')
+        BS_KEY  = credentials('BROWSERSTACK_ACCESS_KEY')
+        PYTHON_ENV = ".venv/Scripts/activate" // Windows virtualenv path
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Setup Python') {
+            steps {
+                echo "Activating virtual environment"
+                bat "call ${env.PYTHON_ENV}"
+                echo "Installing dependencies"
+                bat "pip install -r requirements.txt"
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                script {
+                    // Build the Behave command with dynamic parameters
+                    def cmd = "python run_behave.py --tags=${params.TAGS} browser=${params.BROWSER} browserstack=${params.BROWSERSTACK}"
+
+                    if (params.BROWSERSTACK) {
+                        if (params.DEVICE_NAME) {
+                            // Mobile device execution
+                            cmd += " device=${params.DEVICE_NAME} o_version=${params.MOBILE_OS_VERSION}"
+                        } else {
+                            // Desktop execution
+                            cmd += " b_version=${params.BROWSER_VERSION} os=${params.OS_NAME} o_version=${params.OS_VERSION}"
+                        }
+                    }
+
+                    echo "Running command: ${cmd}"
+                    bat cmd
+                }
+            }
+        }
+
+        stage('Generate Allure Report') {
+            steps {
+                echo "Generating Allure report"
+                bat 'allure-2.36.0\\bin\\allure generate reports\\allure-results -o reports\\allure-report --clean'
+                echo "Open report: allure-2.36.0\\bin\\allure open reports\\allure-report"
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Archiving Allure reports"
+            archiveArtifacts artifacts: 'reports/allure-report/**', allowEmptyArchive: true
+        }
+
+        failure {
+            echo "Tests failed!"
+        }
+
+        success {
+            echo "Tests passed!"
+        }
+    }
+}
