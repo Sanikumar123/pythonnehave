@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -15,9 +14,6 @@ pipeline {
     }
 
     environment {
-        // BrowserStack credentials (add them in Jenkins credentials)
-        BS_USER = credentials('BROWSERSTACK_USERNAME')
-        BS_KEY  = credentials('BROWSERSTACK_ACCESS_KEY')
         PYTHON_ENV = ".venv/Scripts/activate" // Windows virtualenv path
     }
 
@@ -41,7 +37,7 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Build the Behave command with dynamic parameters
+                    // Build the Behave command dynamically
                     def cmd = "python run_behave.py --tags=${params.TAGS} browser=${params.BROWSER} browserstack=${params.BROWSERSTACK}"
 
                     if (params.BROWSERSTACK) {
@@ -54,7 +50,10 @@ pipeline {
                         }
                     }
 
+                    // Log the command for debugging
                     echo "Running command: ${cmd}"
+
+                    // Run the tests
                     bat cmd
                 }
             }
