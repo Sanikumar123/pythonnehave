@@ -16,6 +16,7 @@ Report_dir = os.path.join(Root_dir, "reports")
 Allure_Results = os.path.join(Report_dir, "allure-results")
 Allure_Reports = os.path.join(Report_dir, "allure-report")
 
+
 # ------------------ before_all ------------------
 def before_all(context):
     # Clean old folders
@@ -36,34 +37,74 @@ def before_all(context):
     context.password = env_data.get("password")
 
     # Browser
-    context.browser = context.config.userdata.get("browser", "chrome")
+    context.browser = context.config.userdata.get("browser", "chrome").lower()
 
-    #browserstack
-    context.use_bs= context.config.userdata.get("browserstack","false")=="true"
+    # BrowserStack
+    context.use_bs = context.config.userdata.get("browserstack", "false").lower() == "true"
 
+    # Browser version
+    context.b_version = context.config.userdata.get("browser_version", "latest")
+
+    # OS / device settings
+    context.o_name = context.config.userdata.get("os_name")
+    context.o_version = context.config.userdata.get("os_version")
+    context.device_name = context.config.userdata.get("device_name")
+    context.platform_name = context.config.userdata.get("platform_name")
+
+    # Safari defaults for BrowserStack desktop
+    if context.use_bs and context.browser == "safari" and not context.device_name:
+        if not context.o_name:
+            context.o_name = "OS X"
+        if not context.o_version:
+            context.o_version = "Monterey"
+        if not context.b_version:
+            context.b_version = "16.1"
+
+    # Default desktop OS if not provided
+    if not context.o_name and not context.device_name:
+        context.o_name = "Windows"
+    if not context.o_version and not context.device_name:
+        context.o_version = "11"
 
     # Logger
     context.logger = setup_logger()
     context.logger.info("Starting test execution")
-    context.logger.info(f"Environment: {env_value}, Browser: {context.browser}")
+    context.logger.info(
+        f"Environment: {env_value}, "
+        f"Browser: {context.browser}, "
+        f"BrowserStack: {context.use_bs}, "
+        f"OS/Device: {context.o_name or context.device_name} {context.o_version or context.platform_name}, "
+        f"Browser Version: {context.b_version}"
+    )
 
     # Write environment.properties for Allure
     with open(os.path.join(Allure_Results, "environment.properties"), "w") as f:
         f.write(f"Environment={env_value}\n")
         f.write(f"Browser={context.browser}\n")
-        f.write(f"OS={platform.system()} {platform.release()}\n")
+        f.write(f"OS/Device={platform.system()} {platform.release()}\n")
         f.write(f"Python={platform.python_version()}\n")
         f.write(f"ExecutionTime={TIMESTAMP}\n")
 
+
 # ------------------ before_scenario ------------------
 def before_scenario(context, scenario):
-    context.driver = get_driver(context.browser,use_browserstack=context.use_bs)
+    context.driver = get_driver(
+        browser=context.browser,
+        use_browserstack=context.use_bs,
+        scenario_name=scenario.name,
+        browser_version=context.b_version,
+        os_name=context.o_name,
+        os_version=context.o_version,
+        device_name=context.device_name,
+        platform_name=context.platform_name
+    )
     context.driver.get(context.url)
+
 
 # ------------------ after_step ------------------
 def after_step(context, step):
     try:
-        # Attach screenshot for EVERY step
+        # Attach screenshot for every step
         if hasattr(context, "driver") and context.driver:
             allure.attach(
                 context.driver.get_screenshot_as_png(),
@@ -79,10 +120,20 @@ def after_step(context, step):
     elif step.status == "failed":
         context.logger.error(f"STEP FAILED | {step.keyword} {step.name}")
 
+
 # ------------------ after_scenario ------------------
 def after_scenario(context, scenario):
-    if hasattr(context, "driver") and context.driver:
-        context.driver.quit()
+    if hasattr(context, "driver"):
+        try:
+            if context.use_bs:
+                status = "passed" if scenario.status == "passed" else "failed"
+                reason = "Scenario Passed" if scenario.status == "passed" else "Scenario Failed"
+                context.driver.execute_script(
+                    f'browserstack_executor: {{"action": "setSessionStatus", "arguments": {{"status":"{status}","reason": "{reason}"}}}}'
+                )
+        finally:
+            context.driver.quit()
+
 
 # ------------------ after_all ------------------
 def after_all(context):

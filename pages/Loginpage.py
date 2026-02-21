@@ -1,3 +1,5 @@
+import time
+
 from selenium.webdriver.common.by import By
 
 from pages.basepage import BasePage
@@ -15,6 +17,7 @@ class LoginPage(BasePage):
     @log_action
     def login(self,user,pwd):
         self.click(self.homepage_login_btn)
+        time.sleep(2)
         self.type(self.username,user)
         self.type(self.password,pwd)
         self.click(self.login_btn)

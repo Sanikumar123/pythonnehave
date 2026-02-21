@@ -25,10 +25,10 @@ ENV_CONFIG = {
     "browserstack": {
         "username": "sanimondal_8E0adh",
         "access_key": "Jk1kQPfCsTFHqqXUXt5t",
-        "browser": "Chrome",
-        "browser_version": "latest",
-        "os": "Windows",
-        "os_version": "11"
+        #"browser": "Chrome",
+        #"browser_version": "latest",
+        #"os": "Windows",
+        #"os_version": "11"
     }
 
 }

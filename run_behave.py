@@ -15,21 +15,33 @@ tags = None
 browser = "chrome"
 feature_path = None
 env = "qa"
-browserstack="false"
+browserstack = None
+browser_version = None
+os_name = None
+os_version = None
+device_name = None
+platform_name = None
 
 # ---------------- Parse command line args ----------------
 for arg in sys.argv[1:]:
     if arg.startswith("--tags="):
         tags = arg.split("=", 1)[1]
     elif arg.startswith("browser="):
-        browser = arg.split("=", 1)[1]
-        if browser.lower()=="browserstack":
-            browserstack="true"
-
+        browser = arg.split("=", 1)[1].lower()
+    elif arg.startswith("browserstack="):
+        browserstack = arg.split("=", 1)[1].lower()
     elif arg.startswith("env="):
         env = arg.split("=", 1)[1]
-    elif arg.startswith("--jobs="):
-        parallel_jobs = int(arg.split("=", 1)[1])
+    elif arg.startswith("b_version="):
+        browser_version = arg.split("=", 1)[1]
+    elif arg.startswith("os="):
+        os_name = arg.split("=", 1)[1]
+    elif arg.startswith("o_version="):
+        os_version = arg.split("=", 1)[1]
+    elif arg.startswith("device_name="):
+        device_name = arg.split("=", 1)[1]
+    elif arg.startswith("platform_name="):
+        platform_name = arg.split("=", 1)[1]
     elif arg.endswith(".feature") or os.path.isdir(arg):
         feature_path = arg
 
@@ -40,12 +52,11 @@ if os.path.exists(ALLURE_RESULTS):
     shutil.rmtree(ALLURE_RESULTS, ignore_errors=True)
 os.makedirs(ALLURE_RESULTS, exist_ok=True)
 
-# ---------------- Build Behave Parallel command ----------------
+# ---------------- Build Behave command ----------------
 behave_cmd = [
     "behave",
     "-f", "allure_behave.formatter:AllureFormatter",
     "-o", ALLURE_RESULTS,
-
 ]
 
 if feature_path:
@@ -59,15 +70,30 @@ if browser:
 
 if env:
     behave_cmd.append(f"-D env={env}")
-if browserstack:
+
+if browserstack == "true":
     behave_cmd.append(f"-D browserstack={browserstack}")
+
+    if browser_version:
+        behave_cmd.append(f"-D browser_version={browser_version}")
+
+    if os_version:
+        behave_cmd.append(f"-D os_version={os_version}")
+
+    if os_name:
+        behave_cmd.append(f"-D os_name={os_name}")
+
+    if device_name:
+        behave_cmd.append(f"-D device_name={device_name}")
+
+    if platform_name:
+        behave_cmd.append(f"-D platform_name={platform_name}")
 
 # ---------------- Run Behave ----------------
 try:
     subprocess.run(behave_cmd, check=True)
 except subprocess.CalledProcessError as e:
     print(f"Behave execution failed with exit code {e.returncode}")
-    # Continue anyway to generate Allure report
 
 # ---------------- Generate Allure report ----------------
 try:
