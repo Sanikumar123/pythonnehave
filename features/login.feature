@@ -18,7 +18,7 @@ Feature: OpenCart Login page
     Then user should be able to login successfully
 
   @login_outline
-  Scenario Outline: User login functionality with parameter
+  Scenario Outline: User login functionality with outline
 
     When user enters "<username>" and "<password>"
     And clicks on Login button

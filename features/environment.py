@@ -29,6 +29,7 @@ def before_all(context):
     env_value = context.config.userdata.get("env", "qa")
     env_data = ENV_CONFIG.get(env_value)
     if not env_data:
+        #.join() combines list items into one string, separated by whatever is inside the quotes.
         valid_envs = ", ".join(ENV_CONFIG.keys())
         raise ValueError(f"Invalid environment '{env_value}'. Valid options: {valid_envs}")
 
